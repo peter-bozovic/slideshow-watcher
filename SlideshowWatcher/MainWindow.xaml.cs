@@ -33,7 +33,10 @@ namespace SlideshowWatcher
         private static string[] TransitionEffects = new[] { "Fade" };
         private string TransitionType, strImagePath = "";
         private int CurrentSourceIndex, CurrentCtrlIndex, EffectIndex = 0, IntervalTimer = 1;
+
+        private ImagesDb images = new ImagesDb();
         private FileSystemWatcher watcher;
+
 
         public MainWindow()
         {
@@ -44,7 +47,7 @@ namespace SlideshowWatcher
             strImagePath = ConfigurationManager.AppSettings["ImagesPath"];
             ImageControls = new[] { myImage, myImage2 };
 
-            LoadImageFolder(strImagePath);
+            images.LoadFromFolder(ConfigurationManager.AppSettings["ImagesPath"]);
 
             timerImageChange = new DispatcherTimer();
             timerImageChange.Interval = new TimeSpan(0, 0, IntervalTimer);
@@ -56,13 +59,21 @@ namespace SlideshowWatcher
             watcher.Changed += Watcher_Event;
             watcher.Created += Watcher_Event;
             watcher.Deleted += Watcher_Event;
+            watcher.Renamed += Watcher_Renamed;
             watcher.IncludeSubdirectories = true;
             watcher.EnableRaisingEvents = true;
         }
 
+        private void Watcher_Renamed(object sender, RenamedEventArgs e)
+        {
+            if (!e.FullPath.Contains(".tmp.drivedownload")) Debug.WriteLine($"{ DateTime.Now.ToString("s") } : {e.ChangeType} - {e.OldFullPath} => {e.FullPath}");
+            images.TrackChange(e.ChangeType, e.FullPath, e.OldFullPath);
+        }
+
         private void Watcher_Event(object sender, FileSystemEventArgs e)
         {
-            Debug.WriteLine($"{ DateTime.Now.ToString("s") } : {e.ChangeType} - {e.FullPath}");
+            if (!e.FullPath.Contains(".tmp.drivedownload")) Debug.WriteLine($"{ DateTime.Now.ToString("s") } : {e.ChangeType} - {e.FullPath}");
+            images.TrackChange(e.ChangeType, e.FullPath);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -89,71 +100,27 @@ namespace SlideshowWatcher
 
         }
 
-        private void LoadImageFolder(string folder)
-        {
-            ErrorText.Visibility = Visibility.Collapsed;
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            if (!System.IO.Path.IsPathRooted(folder))
-                folder = System.IO.Path.Combine(Environment.CurrentDirectory, folder);
-            if (!System.IO.Directory.Exists(folder))
-            {
-                ErrorText.Text = "The specified folder does not exist: " + Environment.NewLine + folder;
-                ErrorText.Visibility = Visibility.Visible;
-                return;
-            }
-            Random r = new Random();
-            var sources = from file in new System.IO.DirectoryInfo(folder).GetFiles().AsParallel()
-                          where ValidImageExtensions.Contains(file.Extension, StringComparer.InvariantCultureIgnoreCase)
-                          orderby r.Next()
-                          select CreateImageSource(file.FullName, true);
-            var files = from file in new System.IO.DirectoryInfo(folder).GetFiles().AsParallel()
-                          where ValidImageExtensions.Contains(file.Extension, StringComparer.InvariantCultureIgnoreCase)
-                          orderby r.Next()
-                          select file.FullName;
-            Images.Clear();
-            Images.AddRange(sources);
-            sw.Stop();
-            Console.WriteLine("Total time to load {0} images: {1}ms", Images.Count, sw.ElapsedMilliseconds);
-        }
-
-        private ImageSource CreateImageSource(string file, bool forcePreLoad)
-        {
-            if (forcePreLoad)
-            {
-                var src = new BitmapImage();
-                src.BeginInit();
-                src.UriSource = new Uri(file, UriKind.Absolute);
-                src.CacheOption = BitmapCacheOption.OnLoad;
-                src.EndInit();
-                src.Freeze();
-                return src;
-            }
-            else
-            {
-                var src = new BitmapImage(new Uri(file, UriKind.Absolute));
-                src.Freeze();
-                return src;
-            }
-        }
-
         private void timerImageChange_Tick(object sender, EventArgs e)
         {
             PlaySlideShow();
         }
 
+        private bool alternateImage;
         private void PlaySlideShow()
         {
             try
             {
-                if (Images.Count == 0)
-                    return;
-                var oldCtrlIndex = CurrentCtrlIndex;
-                CurrentCtrlIndex = (CurrentCtrlIndex + 1) % 2;
-                CurrentSourceIndex = (CurrentSourceIndex + 1) % Images.Count;
+                if (!images.HasImages()) return;
 
-                Image imgFadeOut = ImageControls[oldCtrlIndex];
-                Image imgFadeIn = ImageControls[CurrentCtrlIndex];
-                ImageSource newSource = Images[CurrentSourceIndex];
+                alternateImage = !alternateImage;
+
+                var imageOne = alternateImage ? 0 : 1;
+                var imageTwo = alternateImage ? 1 : 0;
+
+                Image imgFadeOut = ImageControls[imageOne];
+                Image imgFadeIn = ImageControls[imageTwo];
+
+                ImageSource newSource = images.NextImage();
                 imgFadeIn.Source = newSource;
 
                 TransitionType = TransitionEffects[EffectIndex].ToString();
