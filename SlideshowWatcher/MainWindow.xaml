@@ -4,9 +4,27 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SlideshowWatcher"
+        Loaded="Window_Loaded" 
+        MouseDoubleClick="Window_MouseDoubleClick"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow"
+        Height="768" Width="1024" 
+        WindowStyle="SingleBorderWindow" 
+        Background="Black">
+    <Window.Resources>
+        <!-- Start Fade -->
+        <Storyboard x:Key="FadeIn" >
+            <DoubleAnimation Duration="0:0:.25" Storyboard.TargetProperty="Opacity" From="0" To="1" />
+        </Storyboard>
+        <Storyboard x:Key="FadeOut">
+            <DoubleAnimation Duration="0:0:.5" Storyboard.TargetProperty="Opacity" To="0" />
+        </Storyboard>
+        <!-- End Fade -->
+    </Window.Resources>
+
     <Grid>
-        
+        <Image x:Name="myImage" />
+        <Image x:Name="myImage2" />
+        <TextBlock TextWrapping="Wrap" x:Name="ErrorText" HorizontalAlignment="Stretch" VerticalAlignment="Center" TextAlignment="Center" Visibility="Collapsed" Text="The specified folder does not exist" FontSize="20" />
     </Grid>
 </Window>
