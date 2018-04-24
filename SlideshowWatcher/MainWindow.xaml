@@ -5,26 +5,94 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SlideshowWatcher"
         Loaded="Window_Loaded" 
-        MouseDoubleClick="Window_MouseDoubleClick"
         mc:Ignorable="d"
-        Title="MainWindow"
-        Height="768" Width="1024" 
-        WindowStyle="SingleBorderWindow" 
-        Background="Black">
+        Title="Slideshow Images"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        Background="{DynamicResource MaterialDesignPaper}"
+        TextElement.FontWeight="Medium"
+        TextElement.FontSize="14"
+        FontFamily="pack://application:,,,/MaterialDesignThemes.Wpf;component/Resources/Roboto/#Roboto"
+        Height="768" Width="1024">
     <Window.Resources>
-        <!-- Start Fade -->
-        <Storyboard x:Key="FadeIn" >
+        <local:StringToImageConverter x:Key="StringToImageConverter"/>
+        <Storyboard x:Key="FadeIn">
             <DoubleAnimation Duration="0:0:.25" Storyboard.TargetProperty="Opacity" From="0" To="1" />
         </Storyboard>
         <Storyboard x:Key="FadeOut">
             <DoubleAnimation Duration="0:0:.5" Storyboard.TargetProperty="Opacity" To="0" />
         </Storyboard>
         <!-- End Fade -->
+        <DataTemplate x:Key="BoldTemplate">
+            <TextBlock FontWeight="{Binding Bold}" Text="{Binding ListName}" Foreground="{Binding Color}" />
+        </DataTemplate>
     </Window.Resources>
-
     <Grid>
-        <Image x:Name="myImage" />
-        <Image x:Name="myImage2" />
-        <TextBlock TextWrapping="Wrap" x:Name="ErrorText" HorizontalAlignment="Stretch" VerticalAlignment="Center" TextAlignment="Center" Visibility="Collapsed" Text="The specified folder does not exist" FontSize="20" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <Border BorderThickness="0,2" BorderBrush="Gray">
+            <Grid Margin="10,5,15,5">
+                <CheckBox x:Name="chkListDeleted" Content="Show deleted items" Height="32" IsChecked="{ Binding Images.ShowDeleted }" />
+                <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" VerticalAlignment="Top" Grid.Column="1" Margin="0,0,180,0">
+                    <Run Text="Change interval " BaselineAlignment="Center"/>
+                    <InlineUIContainer>
+                        <TextBox x:Name="txtInterval" TextWrapping="Wrap" Width="50" Margin="0,5,0,0" TextAlignment="Right" />
+                    </InlineUIContainer>
+                </TextBlock>
+                <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" VerticalAlignment="Top">
+                    <Run Text="Loop after " BaselineAlignment="Center"/>
+                    <InlineUIContainer>
+                        <TextBox x:Name="txtLimit" TextWrapping="Wrap" Width="80" Text="20" Margin="0,5,0,0" TextAlignment="Right" />
+                    </InlineUIContainer>
+                </TextBlock>
+            </Grid>
+        </Border>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="5" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+            <ListBox x:Name="lstImages" ItemsSource="{Binding Images.ImagesList}" ItemTemplate="{StaticResource BoldTemplate}" />
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
+            <StackPanel Grid.Column="2" Margin="15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="auto" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="File Path" VerticalAlignment="Center" Margin="0,0,20,0" />
+                    <TextBox TextWrapping="Wrap" Text="{Binding SelectedItem.FullPath, ElementName=lstImages }" Grid.Column="1" />
+                </Grid>
+                <Grid Margin="0,20,20,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="5" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Preview" VerticalAlignment="Center" Margin="0,0,20,0" />
+                    <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
+                    <Image Grid.Column="2" Source="{Binding SelectedItem.FullPath, Converter={StaticResource StringToImageConverter}, ElementName=lstImages}" />
+                </Grid>
+                <Grid Margin="0,20,1,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="auto" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="File Name" VerticalAlignment="Center" Margin="0,0,20,0" />
+                    <TextBox TextWrapping="Wrap" Text="{Binding SelectedItem.FileName, ElementName=lstImages }" Grid.Column="1" />
+                </Grid>
+                <CheckBox Content="Deleted" IsChecked="{Binding SelectedItem.Deleted, ElementName=lstImages }" Margin="0,20,0,0" />
+
+            </StackPanel>
+        </Grid>
+
     </Grid>
 </Window>

@@ -28,52 +28,89 @@ namespace SlideshowWatcher
 
         private DispatcherTimer timerImageChange;
         private Image[] ImageControls;
-        private List<ImageSource> Images = new List<ImageSource>();
         private static string[] ValidImageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".gif" };
-        private static string[] TransitionEffects = new[] { "Fade" };
-        private string TransitionType, strImagePath = "";
-        private int CurrentSourceIndex, CurrentCtrlIndex, EffectIndex = 0, IntervalTimer = 1;
+        private string strImagePath = "";
 
-        private ImagesDb images = new ImagesDb();
+        public ImagesDb Images { get; set; }
         private FileSystemWatcher watcher;
 
+        private SlideshowWindow slideshow = new SlideshowWindow();
 
         public MainWindow()
         {
+            Images = new ImagesDb();
+            DataContext = this;
+
             InitializeComponent();
 
-            //Initialize Image control, Image directory path and Image timer.
-            IntervalTimer = Convert.ToInt32(ConfigurationManager.AppSettings["IntervalTime"]);
-            strImagePath = ConfigurationManager.AppSettings["ImagesPath"];
-            ImageControls = new[] { myImage, myImage2 };
+            txtInterval.Text = ConfigurationManager.AppSettings["IntervalTime"];
+            txtInterval.TextChanged += TxtInterval_TextChanged;
+            chkListDeleted.Checked += ChkListDeleted_Change;
+            chkListDeleted.Unchecked += ChkListDeleted_Change;
 
-            images.LoadFromFolder(ConfigurationManager.AppSettings["ImagesPath"]);
+            //Initialize Image control, Image directory path and Image timer.
+            strImagePath = ConfigurationManager.AppSettings["ImagesPath"];
+            ImageControls = new[] { slideshow.myImage, slideshow.myImage2 };
+
+            Images.LoadFromFolder(ConfigurationManager.AppSettings["ImagesPath"]);
+
+            //lstImages.ItemsSource = images.ImagesCollection;
 
             timerImageChange = new DispatcherTimer();
-            timerImageChange.Interval = new TimeSpan(0, 0, IntervalTimer);
+            timerImageChange.Interval = new TimeSpan(0, 0, Convert.ToInt32(txtInterval.Text));
             timerImageChange.Tick += new EventHandler(timerImageChange_Tick);
 
             watcher = new FileSystemWatcher();
             watcher.Path = ConfigurationManager.AppSettings["ImagesPath"];
-            watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size;
+            watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size | NotifyFilters.DirectoryName;
             watcher.Changed += Watcher_Event;
             watcher.Created += Watcher_Event;
             watcher.Deleted += Watcher_Event;
             watcher.Renamed += Watcher_Renamed;
             watcher.IncludeSubdirectories = true;
             watcher.EnableRaisingEvents = true;
+
+            slideshow.Show();
+        }
+
+        private void ChkListDeleted_Change(object sender, RoutedEventArgs e)
+        {
+            Images.ReloadImagesList();
+        }
+
+        private void TxtInterval_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (int.TryParse(txtInterval.Text, out int value))
+            {
+                timerImageChange.Interval = new TimeSpan(0, 0, value);
+            }
         }
 
         private void Watcher_Renamed(object sender, RenamedEventArgs e)
         {
             if (!e.FullPath.Contains(".tmp.drivedownload")) Debug.WriteLine($"{ DateTime.Now.ToString("s") } : {e.ChangeType} - {e.OldFullPath} => {e.FullPath}");
-            images.TrackChange(e.ChangeType, e.FullPath, e.OldFullPath);
+            Images.TrackChange(e.ChangeType, e.FullPath, e.OldFullPath);
         }
 
         private void Watcher_Event(object sender, FileSystemEventArgs e)
         {
-            if (!e.FullPath.Contains(".tmp.drivedownload")) Debug.WriteLine($"{ DateTime.Now.ToString("s") } : {e.ChangeType} - {e.FullPath}");
-            images.TrackChange(e.ChangeType, e.FullPath);
+            if (e.ChangeType == WatcherChangeTypes.Created && Directory.Exists(e.FullPath))
+            {
+                foreach (string file in Directory.GetFiles(e.FullPath))
+                {
+                    var eventArgs = new FileSystemEventArgs(
+                        WatcherChangeTypes.Created,
+                        System.IO.Path.GetDirectoryName(file),
+                        System.IO.Path.GetFileName(file));
+                    Watcher_Event(sender, eventArgs);
+                }
+            }
+            else
+            {
+                if (!e.FullPath.Contains(".tmp.drivedownload")) Debug.WriteLine($"{ DateTime.Now.ToString("s") } : {e.ChangeType} - {e.FullPath}");
+                Images.TrackChange(e.ChangeType, e.FullPath);
+            }
+
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -82,25 +119,7 @@ namespace SlideshowWatcher
             timerImageChange.IsEnabled = true;
         }
 
-        private bool fullScreen;
-
-        private void Window_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            if(fullScreen)
-            {
-                WindowStyle = WindowStyle.SingleBorderWindow;
-                WindowState = WindowState.Normal;
-                fullScreen = false;
-            } else
-            {
-                WindowStyle = WindowStyle.None;
-                WindowState = WindowState.Maximized;
-                fullScreen = true;
-            }
-
-        }
-
-        private void timerImageChange_Tick(object sender, EventArgs e)
+          private void timerImageChange_Tick(object sender, EventArgs e)
         {
             PlaySlideShow();
         }
@@ -110,7 +129,7 @@ namespace SlideshowWatcher
         {
             try
             {
-                if (!images.HasImages()) return;
+                if (!Images.HasImages()) return;
 
                 alternateImage = !alternateImage;
 
@@ -120,17 +139,17 @@ namespace SlideshowWatcher
                 Image imgFadeOut = ImageControls[imageOne];
                 Image imgFadeIn = ImageControls[imageTwo];
 
-                ImageSource newSource = images.NextImage();
+                ImageSource newSource = Images.NextImage();
+                //lstImages.GetBindingExpression(ListBox.ItemsSourceProperty).UpdateTarget();
                 imgFadeIn.Source = newSource;
 
-                TransitionType = TransitionEffects[EffectIndex].ToString();
-
-                Storyboard StboardFadeOut = (Resources[string.Format("{0}Out", TransitionType.ToString())] as Storyboard).Clone();
+                Storyboard StboardFadeOut = (Resources["FadeOut"] as Storyboard).Clone();
                 StboardFadeOut.Begin(imgFadeOut);
-                Storyboard StboardFadeIn = Resources[string.Format("{0}In", TransitionType.ToString())] as Storyboard;
+                Storyboard StboardFadeIn = Resources["FadeIn"] as Storyboard;
                 StboardFadeIn.Begin(imgFadeIn);
             }
             catch (Exception ex) { }
         }
     }
+
 }
