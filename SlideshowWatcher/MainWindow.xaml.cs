@@ -45,8 +45,10 @@ namespace SlideshowWatcher
 
             txtInterval.Text = ConfigurationManager.AppSettings["IntervalTime"];
             txtInterval.TextChanged += TxtInterval_TextChanged;
-            chkListDeleted.Checked += ChkListDeleted_Change;
-            chkListDeleted.Unchecked += ChkListDeleted_Change;
+            chkListDeleted.Checked += ReloadImagesList;
+            chkListDeleted.Unchecked += ReloadImagesList;
+            chkListExcluded.Checked += ReloadImagesList;
+            chkListExcluded.Unchecked += ReloadImagesList;
 
             //Initialize Image control, Image directory path and Image timer.
             strImagePath = ConfigurationManager.AppSettings["ImagesPath"];
@@ -73,7 +75,7 @@ namespace SlideshowWatcher
             slideshow.Show();
         }
 
-        private void ChkListDeleted_Change(object sender, RoutedEventArgs e)
+        private void ReloadImagesList(object sender, RoutedEventArgs e)
         {
             Images.ReloadImagesList();
         }

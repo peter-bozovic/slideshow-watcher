@@ -34,6 +34,7 @@
         <Border BorderThickness="0,2" BorderBrush="Gray">
             <Grid Margin="10,5,15,5">
                 <CheckBox x:Name="chkListDeleted" Content="Show deleted items" Height="32" IsChecked="{ Binding Images.ShowDeleted }" />
+                <CheckBox x:Name="chkListExcluded" Content="Show excluded items" Height="32" IsChecked="{ Binding Images.ShowExcluded }" Margin="170,0,0,0" />
                 <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" VerticalAlignment="Top" Grid.Column="1" Margin="0,0,180,0">
                     <Run Text="Change interval " BaselineAlignment="Center"/>
                     <InlineUIContainer>
@@ -43,7 +44,7 @@
                 <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" VerticalAlignment="Top">
                     <Run Text="Loop after " BaselineAlignment="Center"/>
                     <InlineUIContainer>
-                        <TextBox x:Name="txtLimit" TextWrapping="Wrap" Width="80" Text="20" Margin="0,5,0,0" TextAlignment="Right" />
+                        <TextBox x:Name="txtLimit" TextWrapping="Wrap" Width="80" Text="{Binding Images.Limit}" Margin="0,5,0,0" TextAlignment="Right" />
                     </InlineUIContainer>
                 </TextBlock>
             </Grid>
@@ -58,15 +59,17 @@
                 <RowDefinition/>
             </Grid.RowDefinitions>
             <ListBox x:Name="lstImages" ItemsSource="{Binding Images.ImagesList}" ItemTemplate="{StaticResource BoldTemplate}" />
+
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
-            <StackPanel Grid.Column="2" Margin="15">
+            <ScrollViewer Grid.Column="2">
+            <StackPanel Margin="15">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="auto" />
                         <ColumnDefinition />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="File Path" VerticalAlignment="Center" Margin="0,0,20,0" />
-                    <TextBox TextWrapping="Wrap" Text="{Binding SelectedItem.FullPath, ElementName=lstImages }" Grid.Column="1" />
+                    <TextBlock Text="File Path" VerticalAlignment="Center" Margin="0,0,20,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" />
+                    <TextBox TextWrapping="Wrap" Text="{Binding SelectedItem.FullPath, ElementName=lstImages }" Grid.Column="1" IsReadOnly="True" IsEnabled="False" />
                 </Grid>
                 <Grid Margin="0,20,20,0">
                     <Grid.ColumnDefinitions>
@@ -77,7 +80,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="Preview" VerticalAlignment="Center" Margin="0,0,20,0" />
+                    <TextBlock Text="Preview" VerticalAlignment="Center" Margin="0,0,20,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" />
                     <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
                     <Image Grid.Column="2" Source="{Binding SelectedItem.FullPath, Converter={StaticResource StringToImageConverter}, ElementName=lstImages}" />
                 </Grid>
@@ -86,12 +89,32 @@
                         <ColumnDefinition Width="auto" />
                         <ColumnDefinition />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="File Name" VerticalAlignment="Center" Margin="0,0,20,0" />
-                    <TextBox TextWrapping="Wrap" Text="{Binding SelectedItem.FileName, ElementName=lstImages }" Grid.Column="1" />
+                    <TextBlock Text="File Name" VerticalAlignment="Center" Margin="0,0,20,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" />
+                    <TextBox TextWrapping="Wrap" Text="{Binding SelectedItem.FileName, ElementName=lstImages }" Grid.Column="1" IsEnabled="False" IsReadOnly="True" />
                 </Grid>
-                <CheckBox Content="Deleted" IsChecked="{Binding SelectedItem.Deleted, ElementName=lstImages }" Margin="0,20,0,0" />
+                <CheckBox Content="Deleted" IsChecked="{Binding SelectedItem.Deleted, ElementName=lstImages }" Margin="0,20,0,0" IsEnabled="False" />
+                <Grid Margin="0,20,1,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="auto" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Tag" VerticalAlignment="Center" Margin="0,0,20,0" />
+                    <TextBox TextWrapping="Wrap" Text="{Binding SelectedItem.Tag, ElementName=lstImages }" Grid.Column="1" />
+                </Grid>
+                <Grid Margin="0,20,1,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="auto" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Display Count" VerticalAlignment="Center" Margin="0,0,20,0" />
+                    <TextBox TextWrapping="Wrap" Text="{Binding SelectedItem.DisplayCount, ElementName=lstImages }" Grid.Column="1" />
+                </Grid>
+                <CheckBox Content="Exclude from slideshow" IsChecked="{Binding SelectedItem.Exclude, ElementName=lstImages }" Margin="0,20,0,0" />
 
             </StackPanel>
+
+
+            </ScrollViewer>
         </Grid>
 
     </Grid>

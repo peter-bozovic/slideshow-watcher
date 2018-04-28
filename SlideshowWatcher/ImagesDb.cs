@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -22,8 +23,40 @@ namespace SlideshowWatcher
             public string FileName { get; set; }
             public string FullPath { get; set; }
             public long Size { get; set; }
-            public bool Deleted { get; set; }
+            private bool deleted;
+            public bool Deleted {
+                get { return deleted; }
+                set {
+                    deleted = value;
+                    Changed(this, "ListName");
+                    Changed(this, "Bold");
+                    Changed(this, "Color");
+                }
+            }
+            private bool exclude;
+            public bool Exclude {
+                get { return exclude; }
+                set {
+                    exclude = value;
+                    Changed(this, "ListName");
+                    Changed(this, "Bold");
+                    Changed(this, "Color");
+                }
+            }
+            public long DisplayCount { get; set; }
+            private string tag;
+            public string Tag {
+                get { return tag; }
+                set {
+                    tag = value;
+                    Changed(this, "ListName");
+                    Changed(this, "Bold");
+                    Changed(this, "Color");
+                }
+            }
+
             private bool current;
+            [JsonIgnore]
             public bool Current {
                 get { return current; }
                 set {
@@ -33,23 +66,28 @@ namespace SlideshowWatcher
                     Changed(this, "Color");
                 }
             }
+            [JsonIgnore]
             public string ListName {
                 get {
+                    if (!string.IsNullOrEmpty(Tag)) return Tag;
                     return FileName;
                 }
             }
+            [JsonIgnore]
             public FontWeight Bold {
                 get {
 
                     return Current ? FontWeights.Bold : FontWeights.Normal;
                 }
             }
+            [JsonIgnore]
             public Brush Color {
                 get {
-                    return Deleted ? Brushes.LightGray : Brushes.Black;
+                    if (Deleted) return Brushes.DarkRed;
+                    if (Exclude) return Brushes.LightGray;
+                    return Brushes.Black;
                 }
             }
-
 
             public event PropertyChangedEventHandler PropertyChanged;
             private void Changed(object sender, string propertyName)
@@ -58,9 +96,25 @@ namespace SlideshowWatcher
             }
         }
 
+
+        private const string jsonFilePath = @"d:\slideshow.json";
         public ImagesDb()
         {
             ImagesList = new ObservableCollection<ImageItem>();
+            Limit = 20;
+            var file = new FileInfo(jsonFilePath);
+            if (file.Exists)
+            {
+                using (var reader = file.OpenText())
+                {
+                    string json = reader.ReadToEnd();
+                    imagesCollection = JsonConvert.DeserializeObject<List<ImageItem>>(json);
+                }
+            }
+        }
+
+        private void SaveJson() {
+            File.WriteAllText(jsonFilePath, JsonConvert.SerializeObject(imagesCollection, Formatting.Indented));
         }
 
         private static string[] ValidImageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".gif" };
@@ -68,9 +122,12 @@ namespace SlideshowWatcher
 
         public ObservableCollection<ImageItem> ImagesList { get; set; }
         public bool ShowDeleted {get; set; }
+        public bool ShowExcluded { get; set; }
+        public long Limit { get; set; }
 
         public void LoadFromFolder(string folder)
         {
+            imagesCollection.AsParallel().ForAll(item => item.Deleted = true);
             var sw = Stopwatch.StartNew();
             if (!Path.IsPathRooted(folder))
                 folder = Path.Combine(Environment.CurrentDirectory, folder);
@@ -94,6 +151,7 @@ namespace SlideshowWatcher
             }
             sw.Stop();
             Debug.WriteLine("Loaded form disk {0} images in {1}ms", files.Count, sw.ElapsedMilliseconds);
+            imagesCollection = imagesCollection.OrderBy(o => o.DisplayCount).ToList();
             ReloadImagesList();
         }
 
@@ -106,7 +164,7 @@ namespace SlideshowWatcher
                     ImagesList.Clear();
                     foreach (var item in imagesCollection)
                     {
-                        if (ShowDeleted || !item.Deleted) ImagesList.Add(item);
+                        if ((ShowDeleted || !item.Deleted) && (ShowExcluded || !item.Exclude)) ImagesList.Add(item);
                     }
                 }
             }));
@@ -133,6 +191,13 @@ namespace SlideshowWatcher
                             }
                             createdItem.FullPath = fileInfo.FullName;
                             createdItem.Deleted = false;
+
+                            var validImages = GetValidImages();
+                            var current = validImages[currentImage];
+                            var currentIndex = imagesCollection.IndexOf(current);
+                            imagesCollection.Remove(createdItem);
+                            imagesCollection.Insert(currentIndex, createdItem);
+
                             break;
                         case WatcherChangeTypes.Deleted:
                             if (fileInfo.Attributes.HasFlag(FileAttributes.Directory))
@@ -184,6 +249,7 @@ namespace SlideshowWatcher
                                 renamedItem.FileName = fileInfo.Name;
                                 renamedItem.FullPath = fileInfo.FullName;
                                 renamedItem.Size = fileInfo.Length;
+                                renamedItem.Deleted = false;
                             }
                             break;
                         case WatcherChangeTypes.All:
@@ -203,13 +269,21 @@ namespace SlideshowWatcher
 
         private int currentImage;
 
+        private List<ImageItem> GetValidImages()
+        {
+            return imagesCollection.AsParallel().Where(o => !o.Deleted && !o.Exclude).ToList();
+        }
+
         public ImageSource NextImage()
         {
-            var validImages = imagesCollection.AsParallel().Where(o => !o.Deleted).ToList();
+            var validImages = GetValidImages();
 
-            if (currentImage >= validImages.Count)
+            if (currentImage >= validImages.Count || currentImage > Limit)
             {
                 currentImage = 0;
+                imagesCollection = imagesCollection.OrderBy(o => o.DisplayCount).ToList();
+                validImages = GetValidImages();
+                ReloadImagesList();
             }
             var image = validImages[currentImage];
             foreach (var item in imagesCollection.Where(o => o.Current)) {
@@ -217,6 +291,8 @@ namespace SlideshowWatcher
             }
             image.Current = true;
             currentImage++;
+            image.DisplayCount++;
+            SaveJson();
 
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
