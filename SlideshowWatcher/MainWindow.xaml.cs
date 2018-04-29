@@ -49,6 +49,7 @@ namespace SlideshowWatcher
             chkListDeleted.Unchecked += ReloadImagesList;
             chkListExcluded.Checked += ReloadImagesList;
             chkListExcluded.Unchecked += ReloadImagesList;
+            lstImages.MouseDoubleClick += LstImages_MouseDoubleClick;
 
             //Initialize Image control, Image directory path and Image timer.
             strImagePath = ConfigurationManager.AppSettings["ImagesPath"];
@@ -73,6 +74,11 @@ namespace SlideshowWatcher
             watcher.EnableRaisingEvents = true;
 
             slideshow.Show();
+        }
+
+        private void LstImages_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            Images.SetAsNext(lstImages.SelectedItem as ImagesDb.ImageItem);
         }
 
         private void ReloadImagesList(object sender, RoutedEventArgs e)

@@ -113,7 +113,8 @@ namespace SlideshowWatcher
             }
         }
 
-        private void SaveJson() {
+        private void SaveJson()
+        {
             File.WriteAllText(jsonFilePath, JsonConvert.SerializeObject(imagesCollection, Formatting.Indented));
         }
 
@@ -121,7 +122,7 @@ namespace SlideshowWatcher
         private List<ImageItem> imagesCollection = new List<ImageItem>();
 
         public ObservableCollection<ImageItem> ImagesList { get; set; }
-        public bool ShowDeleted {get; set; }
+        public bool ShowDeleted { get; set; }
         public bool ShowExcluded { get; set; }
         public long Limit { get; set; }
 
@@ -132,11 +133,12 @@ namespace SlideshowWatcher
             if (!Path.IsPathRooted(folder))
                 folder = Path.Combine(Environment.CurrentDirectory, folder);
 
-            var files = new DirectoryInfo(folder).GetFiles().AsParallel()
-                .Where(o => ValidImageExtensions.Contains(o.Extension, StringComparer.InvariantCultureIgnoreCase))
+            var files = new DirectoryInfo(folder).GetFiles("*", SearchOption.AllDirectories).AsParallel()
+                .Where(o => ValidImageExtensions.Contains(o.Extension, StringComparer.InvariantCultureIgnoreCase) &&
+                            !o.Attributes.HasFlag(FileAttributes.Hidden) && !o.Attributes.HasFlag(FileAttributes.System) && !o.Attributes.HasFlag(FileAttributes.Temporary))
                 .ToList();
 
-            foreach(var item in files)
+            foreach (var item in files)
             {
                 var imageItem = imagesCollection.AsParallel().Where(o => o.FileName == item.Name && o.Size == item.Length).FirstOrDefault();
                 if (imageItem == null)
@@ -286,7 +288,8 @@ namespace SlideshowWatcher
                 ReloadImagesList();
             }
             var image = validImages[currentImage];
-            foreach (var item in imagesCollection.Where(o => o.Current)) {
+            foreach (var item in imagesCollection.Where(o => o.Current))
+            {
                 item.Current = false;
             }
             image.Current = true;
@@ -301,6 +304,16 @@ namespace SlideshowWatcher
             bitmap.EndInit();
             bitmap.Freeze();
             return bitmap;
+        }
+
+        public void SetAsNext(ImageItem image)
+        {
+            var validImages = GetValidImages();
+            var current = validImages[currentImage];
+            var currentIndex = imagesCollection.IndexOf(current);
+            imagesCollection.Remove(image);
+            imagesCollection.Insert(currentIndex, image);
+            ReloadImagesList();
         }
     }
 }
